@@ -46,6 +46,34 @@ def generate_id() -> str:
     return f"{random.randint(100000, 999999)}"
 
 
+def wrap_text(text: str, max_chars_per_line: int = 30) -> str:
+    """
+    Переносит текст по словам, чтобы строки не превышали max_chars_per_line.
+    Сохраняет существующие переносы строк.
+    """
+    lines = text.split('\n')
+    wrapped_lines = []
+
+    for line in lines:
+        if len(line) <= max_chars_per_line:
+            wrapped_lines.append(line)
+        else:
+            words = line.split(' ')
+            current_line = ""
+            for word in words:
+                if not current_line:
+                    current_line = word
+                elif len(current_line) + 1 + len(word) <= max_chars_per_line:
+                    current_line += " " + word
+                else:
+                    wrapped_lines.append(current_line)
+                    current_line = word
+            if current_line:
+                wrapped_lines.append(current_line)
+
+    return '\n'.join(wrapped_lines)
+
+
 def generate_seed() -> int:
     """Генерирует seed для Excalidraw."""
     return random.randint(100000000, 999999999)
@@ -261,7 +289,7 @@ def convert_to_excalidraw(map: HypothesisMap, title: str = "Карта гипо�
     GOAL_W, GOAL_H = 320, 200
     SUBJECT_W, SUBJECT_H = 280, 200
     HYPOTHESIS_W, HYPOTHESIS_H = 380, 350
-    TASK_W, TASK_H = 220, 80
+    TASK_W, TASK_H = 240, 100
 
     # === НАЗВАНИЕ КАРТЫ ===
     title_elem = {
@@ -361,7 +389,12 @@ def convert_to_excalidraw(map: HypothesisMap, title: str = "Карта гипо�
         text = f"ГИПОТЕЗА {i+1}"
         if priority_label:
             text += f"\n{priority_label} приоритет"
-        text += f"\n\nЕСЛИ {hyp.if_part},\n\nТО {hyp.then_part},\n\nПОТОМУ ЧТО {hyp.because_part},\n\nТОГДА {hyp.then_metric}"
+        # Переносим каждую часть гипотезы отдельно
+        if_wrapped = wrap_text(hyp.if_part, 40)
+        then_wrapped = wrap_text(hyp.then_part, 40)
+        because_wrapped = wrap_text(hyp.because_part, 40)
+        result_wrapped = wrap_text(hyp.then_metric, 40)
+        text += f"\n\nЕСЛИ {if_wrapped},\n\nТО {then_wrapped},\n\nПОТОМУ ЧТО {because_wrapped},\n\nТОГДА {result_wrapped}"
 
         rect, txt = create_card(card_id, text_id, COL_HYPOTHESIS, y, HYPOTHESIS_W, HYPOTHESIS_H, COLORS["hypothesis"], text.strip(), 11)
         elements.extend([rect, txt])
@@ -394,7 +427,8 @@ def convert_to_excalidraw(map: HypothesisMap, title: str = "Карта гипо�
                     text_id = f"task-text-{task_idx}"
                     task_y = task_start_y + j * (TASK_H + 15)
 
-                    rect, txt = create_card(card_id, text_id, COL_TASK, task_y, TASK_W, TASK_H, COLORS["task"], task.description, 12)
+                    wrapped_desc = wrap_text(task.description, max_chars_per_line=25)
+                    rect, txt = create_card(card_id, text_id, COL_TASK, task_y, TASK_W, TASK_H, COLORS["task"], wrapped_desc, 12)
                     elements.extend([rect, txt])
                     card_elements[card_id] = rect
                     positions[task.id] = (COL_TASK, task_y, TASK_W, TASK_H, card_id)
